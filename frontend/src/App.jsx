@@ -3,6 +3,7 @@ import Header from './components/Header';
 import SearchBar from './components/SearchBar';
 import SpecialtyGrid from './components/SpecialtyGrid';
 import Spinner from './components/Spinner';
+const API_URL = import.meta.env.APP_API_URL;
 
 function App() {
   const [specialties, setSpecialties] = useState([]);
@@ -19,7 +20,7 @@ function App() {
     setLoading(true);
     try {
       const response = await fetch(
-        `http://localhost:8000/api/areas/specialties/?limit=${limit}&page=${pageNumber}&search=${encodeURIComponent(search)}`
+        `${API_URL}/api/areas/specialties/?limit=${limit}&page=${pageNumber}&search=${encodeURIComponent(search)}`
       );
       const data = await response.json();
       if (pageNumber === 1) {
