@@ -15,13 +15,13 @@ export function PDFDialog({ pdfSrc, triggerText = "Ver Ficha PDF" }) {
     <Dialog>
       {/* Este Trigger puede ser un botón, texto o cualquier otro elemento */}
       <DialogTrigger asChild>
-        <Button className="bg-blue-600">{triggerText}</Button>
+        <Button className="">{triggerText}</Button>
       </DialogTrigger>
 
       {/* Contenido del diálogo */}
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Ficha PDF</DialogTitle>
+          <DialogTitle>Ver PDF</DialogTitle>
           <DialogDescription>
           </DialogDescription>
         </DialogHeader>
