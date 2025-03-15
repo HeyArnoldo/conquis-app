@@ -10,4 +10,11 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  define: {
+    'process.env': process.env,
+  },
+  envPrefix: 'APP_',
+  preview: {
+    allowedHosts: ['conquis.joaosouza.me', 'localhost'],
+  }
 })
