@@ -15,6 +15,6 @@ export default defineConfig({
   },
   envPrefix: 'APP_',
   preview: {
-    allowedHosts: ['conquis.joaosouza.me', 'localhost'],
+    allowedHosts: ['conquis.joaosouza.studio', 'localhost'],
   }
 })
