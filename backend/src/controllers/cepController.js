@@ -67,6 +67,76 @@ const withImagesForManifest = (manifest) => {
   };
 };
 
+const MAX_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 12;
+
+const parsePagination = (req) => {
+  const pageParam = Number.parseInt(req.query.page, 10);
+  const limitParam = Number.parseInt(req.query.limit, 10);
+
+  if (!Number.isFinite(pageParam) && !Number.isFinite(limitParam)) {
+    return null;
+  }
+
+  const limit = Number.isFinite(limitParam) && limitParam > 0
+    ? Math.min(limitParam, MAX_PAGE_SIZE)
+    : DEFAULT_PAGE_SIZE;
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+
+  return { page, limit };
+};
+
+const paginateItems = (items, { page, limit }) => {
+  const total = items.length;
+  const totalPages = total ? Math.ceil(total / limit) : 0;
+  const start = (page - 1) * limit;
+  const slice = items.slice(start, start + limit);
+
+  return {
+    slice,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: totalPages ? page < totalPages : false,
+      hasPrevPage: totalPages ? page > 1 : false
+    }
+  };
+};
+
+const normalizeText = (value = '') => String(value || '')
+  .toLowerCase()
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
+
+const getSearchTerm = (req) => normalizeText(req.query.q || req.query.search || '');
+
+const buildSearchItems = (manifest) => {
+  if (!manifest || !Array.isArray(manifest.categorias)) return [];
+  return manifest.categorias.flatMap(category => {
+    const items = Array.isArray(category.items) ? category.items : [];
+    return items.map(item => ({
+      ...item,
+      categorySlug: category.slug,
+      categoryName: category.nombre_categoria,
+      categoryCode: category.codigo_categoria
+    }));
+  });
+};
+
+const matchesSearch = (item, searchTerm, includeCategory) => {
+  const name = normalizeText(item.nombre);
+  const code = normalizeText(item.codigo);
+  if (name.includes(searchTerm) || code.includes(searchTerm)) return true;
+  if (!includeCategory) return false;
+  const categoryName = normalizeText(item.categoryName);
+  const categoryCode = normalizeText(item.categoryCode);
+  return categoryName.includes(searchTerm) || categoryCode.includes(searchTerm);
+};
+
 // GET /api/cep
 export const getCepManifest = async (req, res) => {
   try {
@@ -74,8 +144,36 @@ export const getCepManifest = async (req, res) => {
     if (!manifest) {
       return res.status(404).json({ message: 'Manifest CEP no encontrado' });
     }
-    res.json({
-      ...withImagesForManifest(manifest),
+    const manifestWithImages = withImagesForManifest(manifest);
+    const searchTerm = getSearchTerm(req);
+    const pagination = parsePagination(req) || (searchTerm ? { page: 1, limit: DEFAULT_PAGE_SIZE } : null);
+
+    if (searchTerm) {
+      const items = buildSearchItems(manifestWithImages);
+      const filtered = items.filter(item => matchesSearch(item, searchTerm, true));
+      const { slice, pagination: meta } = paginateItems(filtered, pagination);
+      return res.json({
+        items: slice,
+        filesBaseUrl: filesBaseUrl(),
+        pagination: meta
+      });
+    }
+
+    if (pagination && Array.isArray(manifestWithImages.categorias)) {
+      const { slice, pagination: meta } = paginateItems(
+        manifestWithImages.categorias,
+        pagination
+      );
+      return res.json({
+        ...manifestWithImages,
+        categorias: slice,
+        filesBaseUrl: filesBaseUrl(),
+        pagination: meta
+      });
+    }
+
+    return res.json({
+      ...manifestWithImages,
       filesBaseUrl: filesBaseUrl()
     });
   } catch (error) {
@@ -91,8 +189,29 @@ export const getCepCategoryBySlug = async (req, res) => {
     if (!category) {
       return res.status(404).json({ message: 'Categoria CEP no encontrada' });
     }
-    res.json({
-      ...withImagesForCategory(category),
+    const categoryWithImages = withImagesForCategory(category);
+    const searchTerm = getSearchTerm(req);
+    const pagination = parsePagination(req) || (searchTerm ? { page: 1, limit: DEFAULT_PAGE_SIZE } : null);
+    const items = Array.isArray(categoryWithImages.items) ? categoryWithImages.items : [];
+    const filteredItems = searchTerm
+      ? items.filter(item => matchesSearch(item, searchTerm, false))
+      : items;
+
+    if (pagination) {
+      const { slice, pagination: meta } = paginateItems(
+        filteredItems,
+        pagination
+      );
+      return res.json({
+        ...categoryWithImages,
+        items: slice,
+        filesBaseUrl: filesBaseUrl(),
+        pagination: meta
+      });
+    }
+
+    return res.json({
+      ...categoryWithImages,
       filesBaseUrl: filesBaseUrl()
     });
   } catch (error) {

@@ -37,3 +37,21 @@ Behavior:
 - GET /api/cep
 - GET /api/cep/:categorySlug
 - GET /api/cep/:categorySlug/:specialtySlug
+
+### Paginacion (opcional)
+
+Para optimizar la carga, los endpoints soportan:
+
+- `page`: numero de pagina (1-based)
+- `limit`: cantidad de registros por pagina (max 100)
+- `q` o `search`: texto de busqueda (filtra por nombre/codigo y categoria en el listado general)
+
+Si no se envian `page`/`limit`, la respuesta devuelve todos los registros.
+Si se envia `q`/`search`, la API devuelve `items` paginados en lugar de `categorias`.
+
+Ejemplos:
+
+- GET /api/cep?page=1&limit=9
+- GET /api/cep/aventuras?page=2&limit=18
+- GET /api/cep?q=campamento&page=1&limit=12
+- GET /api/cep/aventuras?q=campamento&page=1&limit=12

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Spinner from "@/components/Spinner";
 import { Dialog, DialogTrigger, DialogContent, DialogClose } from "@/components/ui/dialog";
@@ -7,6 +7,9 @@ import { FileText } from "lucide-react";
 const API_URL = import.meta.env.APP_API_URL;
 const CDN_URL = import.meta.env.APP_CDN_URL || "";
 const SHOW_WARNINGS = import.meta.env.APP_SHOW_CEP_WARNINGS === "true";
+const PAGE_SIZE = 9;
+const SEARCH_PAGE_SIZE = 12;
+const SEARCH_DEBOUNCE_MS = 250;
 
 function CepCategoryCard({ category, filesBaseUrl }) {
   const [loading, setLoading] = useState(true);
@@ -67,9 +70,32 @@ function CepCategoryCard({ category, filesBaseUrl }) {
 function Cep() {
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedTerm, setDebouncedTerm] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchTotal, setSearchTotal] = useState(0);
+  const [searchPage, setSearchPage] = useState(1);
+  const [searchHasMore, setSearchHasMore] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchLoadingMore, setSearchLoadingMore] = useState(false);
+  const [searchError, setSearchError] = useState(null);
   const [filesBaseUrl, setFilesBaseUrl] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [loadMoreError, setLoadMoreError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const loadMoreRef = useRef(null);
+  const searchMoreRef = useRef(null);
+  const normalizedTerm = searchTerm.trim();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedTerm(searchTerm.trim().toLowerCase());
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     let isMounted = true;
@@ -78,6 +104,10 @@ function Cep() {
     const loadCep = async () => {
       setLoading(true);
       setError(null);
+      setLoadMoreError(null);
+      setPage(1);
+      setHasMore(false);
+      setCategories([]);
 
       try {
         if (!API_URL) {
@@ -85,6 +115,8 @@ function Cep() {
         }
 
         const url = new URL("/api/cep", API_URL);
+        url.searchParams.set("page", "1");
+        url.searchParams.set("limit", String(PAGE_SIZE));
         const response = await fetch(url, { signal: controller.signal });
 
         if (!response.ok) {
@@ -95,6 +127,8 @@ function Cep() {
         if (isMounted) {
           setCategories(Array.isArray(data.categorias) ? data.categorias : []);
           setFilesBaseUrl(data.filesBaseUrl || "");
+          setPage(data.pagination?.page || 1);
+          setHasMore(Boolean(data.pagination?.hasNextPage));
         }
       } catch (err) {
         if (err.name !== "AbortError" && isMounted) {
@@ -115,35 +149,202 @@ function Cep() {
     };
   }, []);
 
-  const normalizedTerm = searchTerm.trim().toLowerCase();
-  const specialties = useMemo(() => {
-    if (!Array.isArray(categories)) return [];
-    return categories.flatMap((category) => {
-      const items = Array.isArray(category.items) ? category.items : [];
-      return items.map((item) => ({
-        ...item,
-        categorySlug: category.slug,
-        categoryName: category.nombre_categoria,
-        categoryCode: category.codigo_categoria
-      }));
-    });
-  }, [categories]);
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
 
-  const filteredSpecialties = useMemo(() => {
-    if (!normalizedTerm) return [];
-    return specialties.filter((item) => {
-      const name = String(item.nombre || "").toLowerCase();
-      const code = String(item.codigo || "").toLowerCase();
-      const category = String(item.categoryName || "").toLowerCase();
-      return (
-        name.includes(normalizedTerm) ||
-        code.includes(normalizedTerm) ||
-        category.includes(normalizedTerm)
+    setLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      if (!API_URL) {
+        throw new Error("APP_API_URL no configurado");
+      }
+
+      const nextPage = page + 1;
+      const url = new URL("/api/cep", API_URL);
+      url.searchParams.set("page", String(nextPage));
+      url.searchParams.set("limit", String(PAGE_SIZE));
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("No se pudo cargar mas contenido");
+      }
+
+      const data = await response.json();
+      setCategories((prev) => [
+        ...prev,
+        ...(Array.isArray(data.categorias) ? data.categorias : [])
+      ]);
+      setPage(nextPage);
+      setHasMore(Boolean(data.pagination?.hasNextPage));
+      if (!filesBaseUrl) {
+        setFilesBaseUrl(data.filesBaseUrl || "");
+      }
+    } catch (err) {
+      setLoadMoreError(err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [filesBaseUrl, hasMore, loadingMore, page]);
+
+  const loadMoreSearch = useCallback(async () => {
+    if (searchLoadingMore || !searchHasMore || !debouncedTerm) return;
+
+    setSearchLoadingMore(true);
+    setSearchError(null);
+
+    try {
+      if (!API_URL) {
+        throw new Error("APP_API_URL no configurado");
+      }
+
+      const nextPage = searchPage + 1;
+      const url = new URL("/api/cep", API_URL);
+      url.searchParams.set("q", debouncedTerm);
+      url.searchParams.set("page", String(nextPage));
+      url.searchParams.set("limit", String(SEARCH_PAGE_SIZE));
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("No se pudo cargar mas resultados");
+      }
+
+      const data = await response.json();
+      setSearchResults((prev) => [
+        ...prev,
+        ...(Array.isArray(data.items) ? data.items : [])
+      ]);
+      setSearchTotal(
+        Number.isFinite(data.pagination?.total)
+          ? data.pagination.total
+          : Array.isArray(data.items)
+            ? data.items.length
+            : 0
       );
-    });
-  }, [normalizedTerm, specialties]);
+      setSearchPage(nextPage);
+      setSearchHasMore(Boolean(data.pagination?.hasNextPage));
+      setFilesBaseUrl((prev) => prev || data.filesBaseUrl || "");
+    } catch (err) {
+      setSearchError(err);
+    } finally {
+      setSearchLoadingMore(false);
+    }
+  }, [debouncedTerm, searchHasMore, searchLoadingMore, searchPage]);
+
+  useEffect(() => {
+    if (normalizedTerm || !hasMore || loadingMore) return;
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(sentinel);
+
+    return () => observer.disconnect();
+  }, [hasMore, loadMore, loadingMore, normalizedTerm]);
+
+  useEffect(() => {
+    if (!debouncedTerm || !searchHasMore || searchLoadingMore) return;
+    const sentinel = searchMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMoreSearch();
+        }
+      },
+      { rootMargin: "200px" }
+    );
+
+    observer.observe(sentinel);
+
+    return () => observer.disconnect();
+  }, [debouncedTerm, loadMoreSearch, searchHasMore, searchLoadingMore]);
+
+  useEffect(() => {
+    if (!debouncedTerm) {
+      setSearchResults([]);
+      setSearchTotal(0);
+      setSearchPage(1);
+      setSearchHasMore(false);
+      setSearchLoading(false);
+      setSearchLoadingMore(false);
+      setSearchError(null);
+      return;
+    }
+
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const loadSearch = async () => {
+      setSearchLoading(true);
+      setSearchError(null);
+      setSearchPage(1);
+      setSearchHasMore(false);
+      setSearchResults([]);
+
+      try {
+        if (!API_URL) {
+          throw new Error("APP_API_URL no configurado");
+        }
+
+        const url = new URL("/api/cep", API_URL);
+        url.searchParams.set("q", debouncedTerm);
+        url.searchParams.set("page", "1");
+        url.searchParams.set("limit", String(SEARCH_PAGE_SIZE));
+        const response = await fetch(url, { signal: controller.signal });
+
+        if (!response.ok) {
+          throw new Error("No se pudo buscar en el CEP");
+        }
+
+        const data = await response.json();
+        if (isMounted) {
+          setSearchResults(Array.isArray(data.items) ? data.items : []);
+          setSearchTotal(
+            Number.isFinite(data.pagination?.total)
+              ? data.pagination.total
+              : Array.isArray(data.items)
+                ? data.items.length
+                : 0
+          );
+          setSearchPage(data.pagination?.page || 1);
+          setSearchHasMore(Boolean(data.pagination?.hasNextPage));
+          setFilesBaseUrl((prev) => prev || data.filesBaseUrl || "");
+        }
+      } catch (err) {
+        if (err.name !== "AbortError" && isMounted) {
+          setSearchError(err);
+        }
+      } finally {
+        if (isMounted) {
+          setSearchLoading(false);
+        }
+      }
+    };
+
+    loadSearch();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [debouncedTerm]);
 
   const normalizedBase = (filesBaseUrl || CDN_URL || "").replace(/\/+$/, "");
+  const hasSearch = normalizedTerm.length > 0;
+  const resultCount =
+    Number.isFinite(searchTotal) && searchTotal > 0 ? searchTotal : searchResults.length;
 
   if (loading) {
     return (
@@ -192,13 +393,13 @@ function Cep() {
         </div>
       </section>
 
-      {normalizedTerm ? (
+      {hasSearch ? (
         <section className="px-4 sm:px-6 lg:px-8 pb-16">
           <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between text-sm text-slate-500 mb-4">
               <span>
-                {filteredSpecialties.length} resultado
-                {filteredSpecialties.length === 1 ? "" : "s"}
+                {resultCount} resultado
+                {resultCount === 1 ? "" : "s"}
               </span>
               <button
                 type="button"
@@ -209,13 +410,17 @@ function Cep() {
               </button>
             </div>
 
-            {filteredSpecialties.length === 0 ? (
+            {searchResults.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-500">
-                No se encontraron especialidades.
+                {searchLoading
+                  ? "Buscando resultados..."
+                  : searchError
+                    ? searchError.message
+                    : "No se encontraron especialidades."}
               </div>
             ) : (
               <div className="grid gap-3">
-                {filteredSpecialties.map((item) => {
+                {searchResults.map((item) => {
                   const pdfPath = item.pdf?.replace(/^\/+/, "") || "";
                   const pdfUrl = item.pdf ? `${normalizedBase}/${pdfPath}` : "";
                   const imagePath = item.img?.replace(/^\/+/, "") || "";
@@ -320,11 +525,22 @@ function Cep() {
                 })}
               </div>
             )}
+            <div ref={searchMoreRef} className="h-10" />
+            {searchLoadingMore ? (
+              <div className="mt-4 flex justify-center">
+                <Spinner />
+              </div>
+            ) : null}
+            {searchError && searchResults.length > 0 ? (
+              <p className="mt-4 text-center text-sm text-red-500">
+                {searchError.message}
+              </p>
+            ) : null}
           </div>
         </section>
       ) : null}
 
-      {!normalizedTerm ? (
+      {!hasSearch ? (
         <section className="pb-16 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {categories.map((category) => (
@@ -335,6 +551,17 @@ function Cep() {
               />
             ))}
           </div>
+          <div ref={loadMoreRef} className="h-10" />
+          {loadingMore ? (
+            <div className="mt-4 flex justify-center">
+              <Spinner />
+            </div>
+          ) : null}
+          {loadMoreError ? (
+            <p className="mt-4 text-center text-sm text-red-500">
+              {loadMoreError.message}
+            </p>
+          ) : null}
         </section>
       ) : null}
     </div>
@@ -342,8 +569,3 @@ function Cep() {
 }
 
 export default Cep;
-
-
-
-
-
