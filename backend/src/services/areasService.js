@@ -7,13 +7,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const areasPath = path.join(__dirname, '../../especialidades.json');
+let cachedAreas = null;
+let cachedMtimeMs = 0;
 
 function readAreasFile() {
   try {
-    const data = fs.readFileSync(areasPath, 'utf8');
-    return JSON.parse(data);
+    const stats = fs.statSync(areasPath);
+    if (!cachedAreas || stats.mtimeMs !== cachedMtimeMs) {
+      const data = fs.readFileSync(areasPath, 'utf8');
+      cachedAreas = JSON.parse(data);
+      cachedMtimeMs = stats.mtimeMs;
+    }
+    return cachedAreas;
   } catch (error) {
-    console.error('Error leyendo el archivo de áreas:', error);
+    console.error('Error leyendo el archivo de areas:', error);
     return [];
   }
 }
@@ -31,11 +38,12 @@ export function getSpecialtyBySlugs(areaSlug, specialtySlug) {
   const areas = readAreasFile();
   const area = areas.find(a => a.slug === areaSlug);
   if (!area) return null;
-  const specialty = area.items.find(item => item.slug === specialtySlug);
+  const items = Array.isArray(area.items) ? area.items : [];
+  const specialty = items.find(item => item.slug === specialtySlug);
   return specialty || null;
 }
 
-// NUEVO: Función para obtener todas las especialidades de todas las áreas
+// NUEVO: Funcion para obtener todas las especialidades de todas las areas
 export function getAllSpecialties() {
   const areas = readAreasFile();
   let specialties = [];

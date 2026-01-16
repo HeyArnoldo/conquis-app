@@ -11,28 +11,40 @@ import {
 
 export function ImageDialog({ imageSrc, imageAlt }) {
   const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   const handleLoad = () => {
+    setLoading(false);
+  };
+
+  const handleError = () => {
+    setHasError(true);
     setLoading(false);
   };
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <div className="relative">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-200 min-h-[287.02px]">
-              <span>Cargando...</span>
+        <div className="relative aspect-square bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+          {loading && !hasError ? (
+            <div className="absolute inset-0 animate-pulse bg-slate-200" />
+          ) : null}
+          {hasError ? (
+            <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500">
+              Imagen no disponible
             </div>
+          ) : (
+            <img
+              src={imageSrc}
+              alt={imageAlt}
+              onLoad={handleLoad}
+              onError={handleError}
+              className={`w-full h-full object-contain cursor-pointer transition-opacity duration-300 ${
+                loading ? "opacity-0" : "opacity-100"
+              }`}
+              loading="lazy"
+            />
           )}
-          <img
-            src={imageSrc}
-            alt={imageAlt}
-            onLoad={handleLoad}
-            className={`w-full h-auto object-contain cursor-pointer transition-opacity duration-300 ${
-              loading ? "opacity-0" : "opacity-100"
-            }`}
-          />
         </div>
       </DialogTrigger>
 
@@ -45,19 +57,24 @@ export function ImageDialog({ imageSrc, imageAlt }) {
         </DialogHeader>
         
         <div className="relative">
-          {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-200 min-h-[287.02px]">
-              <span>Cargando imagen...</span>
+          {loading && !hasError ? (
+            <div className="absolute inset-0 animate-pulse bg-slate-200" />
+          ) : null}
+          {hasError ? (
+            <div className="flex items-center justify-center min-h-[240px] text-sm text-slate-500">
+              Imagen no disponible
             </div>
+          ) : (
+            <img
+              src={imageSrc}
+              alt={imageAlt}
+              onLoad={handleLoad}
+              onError={handleError}
+              className={`max-h-[80vh] max-w-full object-contain mx-auto transition-opacity duration-300 ${
+                loading ? "opacity-0" : "opacity-100"
+              }`}
+            />
           )}
-          <img
-            src={imageSrc}
-            alt={imageAlt}
-            onLoad={handleLoad}
-            className={`max-h-[80vh] max-w-full object-contain mx-auto transition-opacity duration-300 ${
-              loading ? "opacity-0" : "opacity-100"
-            }`}
-          />
           <DialogClose asChild>
             <button className="absolute top-2 right-2 text-white text-2xl font-bold">
               &times;

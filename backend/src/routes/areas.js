@@ -9,8 +9,7 @@ import {
 
 const router = Router();
 
-// NUEVA RUTA: Obtiene TODAS las especialidades (sin importar el área) con paginación
-// Endpoint: GET /api/areas/specialties?limit=&page=
+// GET /api/areas/specialties?limit=&page=&search=
 router.get('/specialties', getAllSpecialtiesPaginated);
 
 // Rutas existentes:
