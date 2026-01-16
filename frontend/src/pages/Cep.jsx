@@ -369,9 +369,22 @@ function Cep() {
         <div className="absolute -bottom-24 -left-20 h-80 w-80 rounded-full bg-blue-200/50 blur-3xl" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(15,23,42,0.05),transparent_60%)]" />
         <div className="relative z-10 max-w-4xl mx-auto text-center">
-          <Link to={'https://www.facebook.com/recursosparaelguiamayor'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-amber-100 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700 shadow-sm">
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Link to={'https://www.facebook.com/recursosparaelguiamayor'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full border border-amber-100 bg-white/90 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700 shadow-sm">
             Créditos: GM. Isaí Duarte Maolo
-          </Link>
+            </Link>
+            <a
+              href="https://www.facebook.com/recursosparaelguiamayor"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-blue-100/80 bg-blue-50/80 px-3 py-1 text-xs font-medium text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-blue-50"
+            >
+              Página de Facebook
+              <span className="text-[11px] font-medium normal-case text-blue-600/80">
+                /recursosparaelguiamayor
+              </span>
+            </a>
+          </div>
           <h1 className="text-4xl md:text-5xl font-semibold text-slate-900 mt-6 mb-4">
             Buscador de Especialidades del Club de Conquistadores de la DSA
           </h1>
