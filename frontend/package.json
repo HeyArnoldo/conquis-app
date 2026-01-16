@@ -7,8 +7,8 @@
     "dev": "vite --mode development",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview --port 23500 ",
-    "start": "vite preview --port 23500"
+    "preview": "vite preview",
+    "start": "vite preview"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.6",

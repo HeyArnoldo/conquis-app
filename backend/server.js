@@ -15,7 +15,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Carga variables de entorno
-const envCandidates = ['.env', '.env.prod'];
+const nodeEnv = (process.env.NODE_ENV || '').toLowerCase();
+const envCandidatesByEnv = {
+  production: ['.env.production', '.env.prod', '.env'],
+  development: ['.env.development', '.env'],
+  test: ['.env.test', '.env'],
+};
+const envCandidates =
+  envCandidatesByEnv[nodeEnv] ||
+  ['.env.development', '.env', '.env.production', '.env.prod'];
 for (const envFile of envCandidates) {
   const envPath = path.join(__dirname, envFile);
   if (fs.existsSync(envPath)) {
