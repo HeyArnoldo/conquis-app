@@ -1,0 +1,36 @@
+# Dependencies & build output
+node_modules
+dist
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+
+# Development / IDE
+.vscode
+.idea
+*.local
+*.sw?
+
+# Logs
+*.log
+logs
+
+# Tests
+test
+coverage
+**/*.spec.ts
+
+# Seeds & utilities (not needed at runtime)
+src/seeds
+check-db.ts
+
+# Git
+.git
+.gitignore
+
+# Legacy files / docs
+README.md
+server.log
+server-local.log
