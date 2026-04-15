@@ -2,10 +2,6 @@
 node_modules
 dist
 
-# Environment files (secrets)
-.env
-.env.*
-!.env.example
 
 # Development / IDE
 .vscode
