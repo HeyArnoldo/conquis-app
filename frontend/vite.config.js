@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => {
     },
     preview: {
       port: previewPort,
-      allowedHosts: ['conquis.joaosouza.studio', 'localhost'],
+      allowedHosts: ['conquis.groowtech.com', 'conquis.joaosouza.studio', 'localhost'],
     },
   };
 });
